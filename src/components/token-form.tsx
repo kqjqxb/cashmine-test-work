@@ -6,6 +6,7 @@ import { colors, fontFamily, spacing } from '@/constants/theme';
 import { AppText } from './app-text';
 import { Button } from './button';
 import { Card } from './card';
+import { Logo } from './logo';
 import { Screen } from './screen';
 
 /** Asks for the API token. The token is only kept in memory and browser storage, never logged. */
@@ -15,7 +16,7 @@ export function TokenForm({ onSave, onCancel }: { onSave: (token: string) => voi
 
   return (
     <Screen style={styles.screen}>
-      <AppText style={styles.brand}>CASHMINE</AppText>
+      <Logo />
       <AppText variant="title">Connect your account</AppText>
       <AppText variant="muted">Paste the API token from your task email. It is stored only in this browser.</AppText>
       <Card>
@@ -45,7 +46,6 @@ export function TokenForm({ onSave, onCancel }: { onSave: (token: string) => voi
 
 const styles = StyleSheet.create({
   screen: { padding: spacing.lg, gap: spacing.md, justifyContent: 'center' },
-  brand: { color: colors.accent, fontWeight: '800', letterSpacing: 1 },
   input: {
     fontFamily,
     fontSize: 16,

@@ -38,23 +38,23 @@ The HTTP layer never retries a POST; only the claim logic does, with the same ke
 
 ## Working with AI
 
-### TODO: heading 1
-TODO (see `ai-logs/`)
+### 1. A prompt that didn't come out the way I meant it
+I asked for PLAN.md "with exactly this content", but I never closed the ```` ```markdown ```` block, and my instruction came after it. The AI had to guess where the file ended; it said so and named the line it stopped at, so I could check rather than find out later. Lesson: keep file content and instructions in separate, closed blocks. Search: `the markdown block in your message wasn't closed`.
 
-### TODO: heading 2
-TODO (see `ai-logs/`)
+### 2. AI output that was risky, and how I checked it
+Decision C relied on `asOf` being the exact time the snapshot was taken; the AI listed this as the main risk, unverified. I tested it with curl against the live API. A snapshot from before the claim showed the old balance and the next one showed −20/+20. The same test returned a 504 for a claim that had been created, and it replayed under the same Idempotency-Key, which proves a "new key on retry" would double-claim. Search: `This confirms the asOf vs createdAt assumption behind decision C`.
 
-### TODO: heading 3
-TODO (see `ai-logs/`)
+### 3. A suggestion I rejected
+The AI recommended keeping D's disabled Claim button ("Keeping D's note and the disabled Claim button limits the damage"). I overrode it. Validation already uses the corrected available and the server checks live, so double-claiming the same money is impossible, while a disabled button would block a legitimate claim of the remainder with no visible reason. Search: `do NOT disable the Claim button while a claim is in flight`.
 
 ## Not done / known issues
 
-- **No browser end-to-end tests.** Unit tests cover the money logic, the API client, the balance correction and the claim store; the screens were not tested automatically.
-- **"Updated Xs ago" uses the device clock.** The browser can't read the server's `Date` header (CORS), so a wrong phone clock skews the label.
-- **Unknown-outcome attempts don't adjust the displayed balance.** We don't know the claim exists, so they show a warning banner instead.
-- **Claims made on another device** aren't corrected locally; they appear through snapshots within ~15–30s.
-- **Decision C assumes `asOf` is exactly when the snapshot was taken.** The live test supports this but the docs don't guarantee it; displayed balances are clamped at 0.
-- **Activity:** an item for an asset that isn't in balances shows the raw amount. There's no pull-to-refresh, and the history doesn't refresh on its own.
-- **Pull-to-refresh on web** is a small custom touch handler, untested across mobile browsers; the Refresh button always works.
-- **Blocked localStorage:** the token and pending attempts don't survive a reload.
-- **Unused template npm dependencies** are still installed. They aren't imported, so they aren't in the bundle.
+- **No browser end-to-end tests.** Unit tests cover the money logic, the API client, the balance correction and the claim store.
+- **"Updated Xs ago" uses the device clock.** The server's `Date` header isn't readable through CORS.
+- **Unknown-outcome attempts don't adjust the balance**, because the claim may not exist; they show a banner instead. Claims made on another device appear only through snapshots.
+- **Decision C assumes `asOf` is exactly when the snapshot was taken.** Verified live once, not guaranteed by the docs; displayed balances are clamped at 0.
+- **Smaller gaps:**
+  - Activity has no auto-refresh, and an item for an asset not in balances shows the raw amount.
+  - Pull-to-refresh on web is a custom touch handler.
+  - If localStorage is blocked, the token and pending attempts are lost on reload.
+  - Unused template dependencies are still installed (not bundled).

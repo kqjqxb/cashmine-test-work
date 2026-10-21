@@ -3,22 +3,29 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Balance } from '@/api/client';
 import type { ClaimRecord } from '@/claims/store';
-import { colors, spacing } from '@/constants/theme';
+import { assetColors, colors, spacing } from '@/constants/theme';
 import { computeUsd, formatAmount, formatUsd } from '@/lib/money';
 
 import { AppText } from './app-text';
 import { Button } from './button';
 import { Card } from './card';
+import { fitFontSize } from './fit-text';
+
+/** Text width inside a card on a 390px phone: 390 − 2×16 (screen) − 2×16 (card) − 2 (border). */
+const CARD_TEXT_WIDTH = 324;
+/** Value column of a detail row: card width minus the label column. */
+const DETAIL_VALUE_WIDTH = CARD_TEXT_WIDTH - 90;
 
 /** `claims`: this asset's claims tracked on this device; shown as a note until balances reflect them. */
 export function BalanceCard({ balance, claims }: { balance: Balance; claims: ClaimRecord[] }) {
   const { asset, decimals, available, pending, claiming } = balance;
   const usd = computeUsd(available, decimals, balance.usdPrice);
+  const availableText = `${formatAmount(available, decimals)} ${asset}`;
 
   return (
     <Card>
       <View style={styles.header}>
-        <View style={styles.badge}>
+        <View style={[styles.badge, { backgroundColor: assetColors[asset] ?? colors.text }]}>
           <AppText style={styles.badgeText}>{asset.slice(0, 1)}</AppText>
         </View>
         <AppText variant="heading" style={styles.asset}>
@@ -29,14 +36,15 @@ export function BalanceCard({ balance, claims }: { balance: Balance; claims: Cla
 
       <View>
         <AppText variant="label">Available</AppText>
-        <AppText variant="amount" selectable>
-          {formatAmount(available, decimals)} {asset}
+        {/* Money is never truncated: long values get a smaller font (and wrap as a last resort). */}
+        <AppText variant="amount" style={{ fontSize: fitFontSize(availableText, CARD_TEXT_WIDTH, 22) }} selectable>
+          {availableText}
         </AppText>
       </View>
 
-      <View style={styles.row}>
+      <View style={styles.details}>
         <Detail label="Pending" value={`${formatAmount(pending, decimals)} ${asset}`} />
-        <Detail label="Claiming" value={`${formatAmount(claiming, decimals)} ${asset}`} />
+        <Detail label="Claiming" value={`${formatAmount(claiming, decimals)} ${asset}`} highlight={claiming > 0n} />
       </View>
 
       {claims.map((record) => (
@@ -69,28 +77,31 @@ function ClaimNote({ record }: { record: ClaimRecord }) {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
     <View style={styles.detail}>
-      <AppText variant="label">{label}</AppText>
-      <AppText selectable>{value}</AppText>
+      <AppText variant="muted" style={styles.detailLabel}>
+        {label}
+      </AppText>
+      <AppText
+        style={[styles.detailValue, { fontSize: fitFontSize(value, DETAIL_VALUE_WIDTH, 14, 11) }, highlight && styles.highlight]}
+        selectable
+      >
+        {value}
+      </AppText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  badge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: colors.card, fontWeight: '700' },
   asset: { flex: 1 },
-  row: { flexDirection: 'row', gap: spacing.md },
-  detail: { flex: 1, gap: 2 },
+  details: { gap: 2 },
+  detail: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  detailLabel: { fontSize: 12, width: 82 },
+  detailValue: { flex: 1, textAlign: 'right', color: colors.textMuted, fontVariant: ['tabular-nums'] },
+  highlight: { color: colors.brand, fontWeight: '600' },
   failedNote: { color: colors.danger },
 });

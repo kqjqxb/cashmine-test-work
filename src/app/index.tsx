@@ -8,6 +8,8 @@ import { AppText } from '@/components/app-text';
 import { BalanceCard } from '@/components/balance-card';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { fitFontSize } from '@/components/fit-text';
+import { Logo } from '@/components/logo';
 import { RefreshScrollView } from '@/components/refresh-scroll-view';
 import { Screen } from '@/components/screen';
 import { Banner, ErrorState, Skeleton } from '@/components/states';
@@ -18,6 +20,8 @@ import { formatUsd, totalUsd } from '@/lib/money';
 
 /** Older than this and the snapshot is flagged as stale (the server recomputes every 15s). */
 const STALE_AFTER_S = 60;
+/** Text width inside a padded card on a 390px phone: 390 − 2×16 (screen) − 2×16 (card) − 2 (border). */
+const TEXT_WIDTH = 324;
 
 const changeToken = () => router.push('/token');
 
@@ -61,6 +65,7 @@ function Home({ token }: { token: string }) {
 
   // Total = what can be claimed right now. Pending can still be reversed; claiming is already leaving.
   const total = totalUsd(data.items.map((b) => ({ amount: b.available, decimals: b.decimals, usdPrice: b.usdPrice })));
+  const totalText = total ? `$${formatUsd(total)}` : '—';
   const ageS = Math.max(0, Math.floor((now - data.asOfMs) / 1000));
   const stale = ageS > STALE_AFTER_S || error !== null;
 
@@ -71,8 +76,8 @@ function Home({ token }: { token: string }) {
 
         <View style={styles.hero}>
           <AppText variant="label">Available to claim</AppText>
-          <AppText style={styles.total} selectable>
-            {total ? `$${formatUsd(total)}` : '—'}
+          <AppText style={[styles.total, { fontSize: fitFontSize(totalText, TEXT_WIDTH, 40) }]} selectable>
+            {totalText}
           </AppText>
           {!total && <AppText variant="muted">USD price is unavailable for some assets.</AppText>}
           <View style={styles.freshness}>
@@ -121,10 +126,10 @@ function Home({ token }: { token: string }) {
 function Header() {
   return (
     <View style={styles.header}>
-      <AppText style={styles.brand}>CASHMINE</AppText>
+      <Logo />
       <View style={styles.headerLinks}>
-        <Button title="Activity" variant="link" compact onPress={() => router.push('/activity')} />
-        <Button title="Change token" variant="link" compact onPress={changeToken} />
+        <Button title="Activity" variant="quiet" compact onPress={() => router.push('/activity')} />
+        <Button title="Change token" variant="quiet" compact onPress={changeToken} />
       </View>
     </View>
   );
@@ -160,9 +165,15 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerLinks: { flexDirection: 'row' },
-  brand: { color: colors.accent, fontWeight: '800', letterSpacing: 1, fontSize: 16 },
-  hero: { gap: spacing.sm, paddingVertical: spacing.sm },
-  total: { fontSize: 40, fontWeight: '700', letterSpacing: -1, color: colors.text, fontVariant: ['tabular-nums'] },
+  hero: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.highlightBorder,
+    backgroundColor: colors.highlight,
+  },
+  total: { fontSize: 40, fontWeight: '800', letterSpacing: -1, color: colors.text, fontVariant: ['tabular-nums'] },
   freshness: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stalePill: { backgroundColor: colors.warningBackground, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   staleText: { color: colors.warning, fontSize: 12, fontWeight: '600' },
