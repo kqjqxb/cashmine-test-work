@@ -5,6 +5,7 @@ import type { ActivityItem } from '@/api/client';
 import { describeError } from '@/api/errors';
 import { useToken } from '@/auth/token';
 import { AppText } from '@/components/app-text';
+import { BackHeader } from '@/components/back-header';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Screen } from '@/components/screen';
@@ -13,7 +14,6 @@ import { colors, radius, spacing } from '@/constants/theme';
 import { useActivity } from '@/hooks/use-activity';
 import { useBalances } from '@/hooks/use-balances';
 import { formatAmount } from '@/lib/money';
-import { goBack } from '@/lib/navigation';
 
 export default function ActivityRoute() {
   const { token } = useToken();
@@ -65,9 +65,7 @@ function ActivityScreen({ token }: { token: string }) {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.back}>
-          <Button title="‹ Back" variant="link" compact onPress={goBack} />
-        </View>
+        <BackHeader />
         <AppText variant="title">Activity</AppText>
         {body}
       </ScrollView>
@@ -82,7 +80,10 @@ function ActivityRow({ item, first }: { item: ActivityItem; first: boolean }) {
     item.amount !== null && item.decimals !== null
       ? `${item.amount > 0n ? '+' : ''}${formatAmount(item.amount, item.decimals)}`
       : item.rawAmount; // unknown asset: shown exactly as the API sent it
-  const tone = item.amount === null ? colors.text : item.amount > 0n ? colors.positive : item.amount < 0n ? colors.danger : colors.text;
+  // A failed claim moved no money: muted and struck through, not a red outflow.
+  const failed = item.status === 'failed';
+  const tone =
+    failed || item.amount === null ? colors.textMuted : item.amount > 0n ? colors.positive : item.amount < 0n ? colors.danger : colors.text;
 
   return (
     <View style={[styles.row, !first && styles.divider]}>
@@ -94,7 +95,7 @@ function ActivityRow({ item, first }: { item: ActivityItem; first: boolean }) {
         <AppText variant="muted">{new Date(item.createdAt).toLocaleString()}</AppText>
       </View>
       <View style={styles.rowSide}>
-        <AppText style={[styles.amount, { color: tone }]} selectable>
+        <AppText style={[styles.amount, { color: tone }, failed && styles.struck]} selectable>
           {amount} {item.asset}
         </AppText>
         <StatusBadge status={item.status} />
@@ -119,7 +120,6 @@ function StatusBadge({ status }: { status: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg },
-  back: { alignItems: 'flex-start' },
   list: { paddingVertical: spacing.xs, gap: 0 },
   row: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },
@@ -127,6 +127,7 @@ const styles = StyleSheet.create({
   rowSide: { alignItems: 'flex-end', gap: 4, flexShrink: 1 },
   type: { fontWeight: '600' },
   amount: { fontWeight: '600', fontVariant: ['tabular-nums'], textAlign: 'right' },
+  struck: { textDecorationLine: 'line-through' },
   badge: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: 12, fontWeight: '600' },
 });

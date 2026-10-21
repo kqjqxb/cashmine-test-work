@@ -7,6 +7,7 @@ import { describeError } from '@/api/errors';
 import { useToken } from '@/auth/token';
 import { useClaims } from '@/claims/claims-provider';
 import { AppText } from '@/components/app-text';
+import { BackHeader } from '@/components/back-header';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Row } from '@/components/row';
@@ -16,7 +17,6 @@ import { colors, fontFamily, radius, spacing } from '@/constants/theme';
 import { useClaimOptions } from '@/hooks/use-claim-options';
 import { useDisplayBalances } from '@/hooks/use-display-balances';
 import { formatAmount, validateClaimAmount, type ClaimAmounts, type ClaimError } from '@/lib/money';
-import { goBack } from '@/lib/navigation';
 import { uuid } from '@/lib/uuid';
 
 export default function ClaimRoute() {
@@ -53,9 +53,7 @@ function ClaimScreen({ token, asset }: { token: string; asset: string }) {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.back}>
-          <Button title="‹ Back" variant="link" compact onPress={goBack} />
-        </View>
+        <BackHeader />
         <AppText variant="title">Claim {asset}</AppText>
         {body}
       </ScrollView>
@@ -218,7 +216,6 @@ function Notice({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg },
-  back: { alignItems: 'flex-start' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   inputRow: {
     flexDirection: 'row',

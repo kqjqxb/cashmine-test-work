@@ -31,6 +31,9 @@ export const colors = {
 /** Asset icon colors; unknown assets fall back to `colors.text`. */
 export const assetColors: Record<string, string> = { USDT: '#26A17B', BTC: '#F7931A', ETH: '#627EEA' };
 
+/** Height of the top header row (Home logo row, "‹ Back" row) so headers line up across screens. */
+export const headerHeight = 36;
+
 export const radius = { card: 18, pill: 999 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;

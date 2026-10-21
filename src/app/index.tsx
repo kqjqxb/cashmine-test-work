@@ -13,7 +13,7 @@ import { Logo } from '@/components/logo';
 import { RefreshScrollView } from '@/components/refresh-scroll-view';
 import { Screen } from '@/components/screen';
 import { Banner, ErrorState, Skeleton } from '@/components/states';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, headerHeight, radius, spacing } from '@/constants/theme';
 import { useDisplayBalances } from '@/hooks/use-display-balances';
 import { useNow } from '@/hooks/use-now';
 import { formatUsd, totalUsd } from '@/lib/money';
@@ -163,8 +163,9 @@ function formatAge(seconds: number): string {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerLinks: { flexDirection: 'row' },
+  header: { height: headerHeight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // Negative margin: the last link's own padding shouldn't indent it from the content's right edge.
+  headerLinks: { flexDirection: 'row', marginRight: -14 },
   hero: {
     gap: spacing.sm,
     padding: spacing.lg,
