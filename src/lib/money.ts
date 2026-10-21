@@ -91,7 +91,7 @@ export function totalUsd(items: { amount: bigint; decimals: number; usdPrice: st
   return { units, scale };
 }
 
-/** Rounds to cents (half away from zero) and formats with exactly 2 decimals, e.g. "1234.50". */
+/** Rounds to cents (half away from zero) and formats with thousands separators and 2 decimals, e.g. "1,234.50". */
 export function formatUsd(value: Decimal): string {
   const negative = value.units < 0n;
   const abs = negative ? -value.units : value.units;
@@ -103,5 +103,6 @@ export function formatUsd(value: Decimal): string {
     cents = abs * 10n ** BigInt(2 - value.scale);
   }
   const sign = negative && cents > 0n ? '-' : '';
-  return `${sign}${cents / 100n}.${(cents % 100n).toString().padStart(2, '0')}`;
+  const dollars = (cents / 100n).toString().replace(/\B(?=(\d{3})+$)/g, ',');
+  return `${sign}${dollars}.${(cents % 100n).toString().padStart(2, '0')}`;
 }

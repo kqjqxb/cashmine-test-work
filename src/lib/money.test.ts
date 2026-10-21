@@ -189,7 +189,7 @@ describe('USD', () => {
 
   it('keeps 18-decimal precision', () => {
     const usd = computeUsd(units('12.345678901234591676', ETH), ETH, '2500');
-    expect(formatUsd(usd!)).toBe('30864.20'); // 30864.19725308647919
+    expect(formatUsd(usd!)).toBe('30,864.20'); // 30864.19725308647919
   });
 
   it('rounds half up at the cent', () => {
@@ -197,6 +197,13 @@ describe('USD', () => {
     expect(formatUsd({ units: 1004n, scale: 3 })).toBe('1.00');
     expect(formatUsd({ units: 5n, scale: 0 })).toBe('5.00');
     expect(formatUsd({ units: 0n, scale: 18 })).toBe('0.00');
+  });
+
+  it('groups thousands', () => {
+    expect(formatUsd({ units: 999_99n, scale: 2 })).toBe('999.99');
+    expect(formatUsd({ units: 1_000_00n, scale: 2 })).toBe('1,000.00');
+    expect(formatUsd({ units: 1_234_567_891n, scale: 3 })).toBe('1,234,567.89');
+    expect(formatUsd({ units: -1_234_567_891n, scale: 3 })).toBe('-1,234,567.89');
   });
 
   it('returns null for a malformed price', () => {
@@ -221,7 +228,7 @@ describe('USD', () => {
       { amount: units('0.5', ETH), decimals: ETH, usdPrice: '2412.37' },
     ]);
     // 820.5772896414 + 33.62525 + 1206.185 = 2060.3875396414
-    expect(formatUsd(total!)).toBe('2060.39');
+    expect(formatUsd(total!)).toBe('2,060.39');
   });
 
   it('makes the total unknown if any price is malformed', () => {

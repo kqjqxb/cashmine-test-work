@@ -1,98 +1,151 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { describeError, isUnauthorized } from '@/api/errors';
+import { useToken } from '@/auth/token';
+import { AppText } from '@/components/app-text';
+import { BalanceCard } from '@/components/balance-card';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { RefreshScrollView } from '@/components/refresh-scroll-view';
+import { Screen } from '@/components/screen';
+import { Banner, ErrorState, Skeleton } from '@/components/states';
+import { colors, radius, spacing } from '@/constants/theme';
+import { useBalances } from '@/hooks/use-balances';
+import { useNow } from '@/hooks/use-now';
+import { formatUsd, totalUsd } from '@/lib/money';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+/** Older than this and the snapshot is flagged as stale (the server recomputes every 15s). */
+const STALE_AFTER_S = 60;
+
+const changeToken = () => router.push('/token');
+
+export default function HomeRoute() {
+  const { token } = useToken();
+  if (!token) return null; // The root layout only renders routes once a token exists.
+  // key: a new token starts from a clean state instead of showing the previous account's balances.
+  return <Home key={token} token={token} />;
+}
+
+function Home({ token }: { token: string }) {
+  const { data, error, refreshing, refresh } = useBalances(token);
+  const now = useNow();
+
+  if (!data) {
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <Screen>
+        {error ? (
+          isUnauthorized(error) ? (
+            <ErrorState
+              title="Token invalid or expired"
+              message="Paste a valid token from your task email."
+              actions={[{ title: 'Change token', onPress: changeToken }, { title: 'Retry', onPress: refresh, loading: refreshing }]}
+            />
+          ) : (
+            <ErrorState
+              title="Couldn't load balances"
+              message={describeError(error)}
+              actions={[{ title: 'Retry', onPress: refresh, loading: refreshing }]}
+            />
+          )
+        ) : (
+          <HomeSkeleton />
+        )}
+      </Screen>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
+  // Total = what can be claimed right now. Pending can still be reversed; claiming is already leaving.
+  const total = totalUsd(data.items.map((b) => ({ amount: b.available, decimals: b.decimals, usdPrice: b.usdPrice })));
+  const ageS = Math.max(0, Math.floor((now - data.asOfMs) / 1000));
+  const stale = ageS > STALE_AFTER_S || error !== null;
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <Screen>
+      <RefreshScrollView refreshing={refreshing} onRefresh={refresh} contentContainerStyle={styles.content}>
+        <Header />
+
+        <View style={styles.hero}>
+          <AppText variant="label">Available to claim</AppText>
+          <AppText style={styles.total} selectable>
+            {total ? `$${formatUsd(total)}` : '—'}
+          </AppText>
+          {!total && <AppText variant="muted">USD price is unavailable for some assets.</AppText>}
+          <View style={styles.freshness}>
+            <AppText variant="muted">Updated {formatAge(ageS)}</AppText>
+            {stale && (
+              <View style={styles.stalePill}>
+                <AppText style={styles.staleText}>Stale</AppText>
+              </View>
+            )}
+            <View style={styles.spacer} />
+            <Button title="Refresh" variant="secondary" compact loading={refreshing} onPress={refresh} />
+          </View>
+        </View>
+
+        {error &&
+          (isUnauthorized(error) ? (
+            <Banner tone="danger" message="Token invalid or expired." action={{ title: 'Change token', onPress: changeToken }} />
+          ) : (
+            <Banner tone="danger" message={`Refresh failed: ${describeError(error)} Showing last known balances.`} action={{ title: 'Retry', onPress: refresh }} />
+          ))}
+
+        {data.items.length === 0 ? (
+          <Card>
+            <AppText variant="heading">No payback yet</AppText>
+            <AppText variant="muted">Balances appear here once you earn payback on a partner exchange.</AppText>
+          </Card>
+        ) : (
+          data.items.map((balance) => <BalanceCard key={balance.asset} balance={balance} />)
+        )}
+      </RefreshScrollView>
+    </Screen>
   );
 }
 
-export default function HomeScreen() {
+function Header() {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <View style={styles.header}>
+      <AppText style={styles.brand}>CASHMINE</AppText>
+      <Button title="Change token" variant="link" compact onPress={changeToken} />
+    </View>
   );
+}
+
+function HomeSkeleton() {
+  return (
+    <View style={styles.content} accessibilityLabel="Loading balances">
+      <Header />
+      <View style={styles.hero}>
+        <Skeleton width={120} height={14} />
+        <Skeleton width={220} height={44} />
+        <Skeleton width={140} height={14} />
+      </View>
+      {[0, 1, 2].map((i) => (
+        <Card key={i}>
+          <Skeleton width="40%" height={20} />
+          <Skeleton width="70%" height={26} />
+          <Skeleton width="100%" height={48} />
+        </Card>
+      ))}
+    </View>
+  );
+}
+
+function formatAge(seconds: number): string {
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  content: { padding: spacing.lg, gap: spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { color: colors.accent, fontWeight: '800', letterSpacing: 1, fontSize: 16 },
+  hero: { gap: spacing.sm, paddingVertical: spacing.sm },
+  total: { fontSize: 40, fontWeight: '700', letterSpacing: -1, color: colors.text, fontVariant: ['tabular-nums'] },
+  freshness: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  stalePill: { backgroundColor: colors.warningBackground, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  staleText: { color: colors.warning, fontSize: 12, fontWeight: '600' },
+  spacer: { flex: 1 },
 });
