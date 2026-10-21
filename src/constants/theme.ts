@@ -12,6 +12,8 @@ export const colors = {
   gradientEnd: '#E07A3A',
   buttonText: '#1A1714',
   skeleton: '#ECE5DD',
+  positive: '#2E7D4F',
+  positiveBackground: '#E6F4EA',
   danger: '#A8321E',
   dangerBackground: '#FBEAE5',
   warning: '#8A5A00',

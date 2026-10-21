@@ -122,7 +122,10 @@ function Header() {
   return (
     <View style={styles.header}>
       <AppText style={styles.brand}>CASHMINE</AppText>
-      <Button title="Change token" variant="link" compact onPress={changeToken} />
+      <View style={styles.headerLinks}>
+        <Button title="Activity" variant="link" compact onPress={() => router.push('/activity')} />
+        <Button title="Change token" variant="link" compact onPress={changeToken} />
+      </View>
     </View>
   );
 }
@@ -156,6 +159,7 @@ function formatAge(seconds: number): string {
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLinks: { flexDirection: 'row' },
   brand: { color: colors.accent, fontWeight: '800', letterSpacing: 1, fontSize: 16 },
   hero: { gap: spacing.sm, paddingVertical: spacing.sm },
   total: { fontSize: 40, fontWeight: '700', letterSpacing: -1, color: colors.text, fontVariant: ['tabular-nums'] },

@@ -45,8 +45,11 @@ export type ActivityItem = {
   id: string;
   type: 'accrual' | 'reversal' | 'claim';
   asset: string;
-  /** Signed: negative for reversals and claims. */
-  amount: bigint;
+  /** Signed: negative for reversals and claims. null when the asset is not in balances (decimals unknown). */
+  amount: bigint | null;
+  decimals: number | null;
+  /** The API string, shown as-is when `amount` is null. */
+  rawAmount: string;
   status: string;
   exchange: string | null;
   createdAt: string;
@@ -270,15 +273,22 @@ function parseActivityItem(raw: unknown, decimalsByAsset: Record<string, number>
   const type = string(o, 'type');
   if (!ACTIVITY_TYPES.includes(type as ActivityItem['type'])) badResponse('activity type');
   const asset = string(o, 'asset');
-  const decimals = decimalsByAsset[asset];
-  if (decimals === undefined) badResponse(`unknown asset ${asset}`);
-  const parsed = parseSignedAmount(string(o, 'amount'), decimals);
-  if (!parsed.ok) badResponse('amount');
+  const rawAmount = string(o, 'amount');
+  // Unknown asset: one row can't be parsed, but that must not hide the rest of the history.
+  const decimals = decimalsByAsset[asset] ?? null;
+  let amount: bigint | null = null;
+  if (decimals !== null) {
+    const parsed = parseSignedAmount(rawAmount, decimals);
+    if (!parsed.ok) badResponse('amount');
+    amount = parsed.value;
+  }
   return {
     id: string(o, 'id'),
     type: type as ActivityItem['type'],
     asset,
-    amount: parsed.value,
+    amount,
+    decimals,
+    rawAmount,
     status: string(o, 'status'),
     exchange: nullableString(o, 'exchange'),
     createdAt: string(o, 'createdAt'),

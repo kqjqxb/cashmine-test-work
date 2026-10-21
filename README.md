@@ -32,10 +32,11 @@ npx expo lint          # lint
   - Never shown as failed; the POST is re-sent with the same key and body.
   - "Check again" button; unresolved attempts resume after a reload and show a banner on Home.
 - **Balance right after a claim:** the snapshot is corrected for this device's claims, using server timestamps only, and each card shows a "Claim … in progress / completed / failed" note.
+- **Activity:** paginated history (accrual / reversal / claim) with signed amounts, status badges and "Load more"; an item for an unknown asset shows the raw amount instead of failing the page.
 - **Money:** every amount is a `bigint` in the asset's smallest unit; no floats anywhere.
-- **Tests (91):** amount parsing and formatting, claim validation, fee and USD math, the API client (retries, no retry on POST, strict parsing), balance correction after a claim, and the claim store.
+- **Tests (94):** amount parsing and formatting, claim validation, fee and USD math, the API client (retries, no retry on POST, strict parsing, activity), balance correction after a claim, and the claim store.
 
-Not done: Activity history. See [NOTES.md](NOTES.md).
+Known issues: see [NOTES.md](NOTES.md).
 
 ## Project structure
 
@@ -46,6 +47,7 @@ src/
     index.tsx          Home: balances
     claim.tsx          claim form → review → confirm
     claim-status.tsx   claim status / unknown-outcome checking
+    activity.tsx       paginated history
     token.tsx          change token
   api/
     client.ts          typed fetch: timeout, GET retries, strict response parsing

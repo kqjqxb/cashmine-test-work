@@ -1,4 +1,4 @@
-import { createClaim, getBalances } from './client';
+import { createClaim, getActivity, getBalances } from './client';
 import { ApiError } from './errors';
 
 const BALANCES = {
@@ -85,5 +85,27 @@ describe('createClaim', () => {
     expect(init.headers['Idempotency-Key']).toBe('key-1');
     expect(result.replayed).toBe(true);
     expect(result.claim.receiveAmount).toBe(498_800_000_000_000_000n);
+  });
+});
+
+describe('getActivity', () => {
+  const item = { id: 'act_1', type: 'reversal', asset: 'USDT', amount: '-9.81', status: 'confirmed', exchange: 'Binance', createdAt: 'x', relatedId: 'act_0' };
+
+  it('parses signed amounts with the asset decimals', async () => {
+    fetchMock.mockReturnValueOnce(reply(200, { items: [item], nextCursor: 'c2' }));
+    const page = await getActivity('t', { USDT: 6 });
+    expect(page.items[0].amount).toBe(-9_810_000n);
+    expect(page.nextCursor).toBe('c2');
+  });
+
+  it('keeps the raw amount for an unknown asset instead of failing the page', async () => {
+    fetchMock.mockReturnValueOnce(reply(200, { items: [{ ...item, asset: 'DOGE' }], nextCursor: null }));
+    const page = await getActivity('t', { USDT: 6 });
+    expect(page.items[0]).toMatchObject({ amount: null, rawAmount: '-9.81' });
+  });
+
+  it('still rejects a malformed amount for a known asset', async () => {
+    fetchMock.mockReturnValueOnce(reply(200, { items: [{ ...item, amount: '-.5' }], nextCursor: null }));
+    await expect(getActivity('t', { USDT: 6 })).rejects.toMatchObject({ code: 'BAD_RESPONSE' });
   });
 });
