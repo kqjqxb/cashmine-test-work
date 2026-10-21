@@ -5433,3 +5433,192 @@
 
 ⏺ Done, but NOTES.md is about 805 words rather than ~750; going lower would mean
   dropping decisions or reasons. All 94 tests pass.
+
+❯ <ide_opened_file>The user opened the file /Users/mmaksim/Documents/cashmine-t
+  est-work/cashmine-test-work/ai-logs/implementation-chat.txt in the IDE. This
+  may or may not be related to the current task.</ide_opened_file>
+
+❯ Two tiny UI fixes, 5 minutes max, no logic changes:
+  1. The "‹ Back" link has extra left padding — it's indented relative to the
+  screen title and cards. Align it with the content's left edge, and give it
+  the same top position/height as the Home header row (logo / Activity / Change
+  token) so headers line up across screens.
+  2. Activity: a claim with status "failed" is shown as a red negative amount,
+  as if money left. Show failed claims muted (grey) with strikethrough on the
+  amount, keeping the "failed" badge.
+     Run tsc/lint/tests, reply "done".
+
+⏺ Bash(cat > src/components/back-header.tsx <<'EOF'
+      import { Pressable, StyleSheet, View } from 'react-native';…)
+  ⎿  Updated src/app/activity.tsx (+8 -7)
+       5  import { describeError } from '@/api/errors';
+       6  import { useToken } from '@/auth/token';
+       7  import { AppText } from '@/components/app-text';
+       8 +import { BackHeader } from '@/components/back-header';         
+       9  import { Button } from '@/components/button';
+      10  import { Card } from '@/components/card';
+      11  import { Screen } from '@/components/screen';
+     ...
+      14  import { useActivity } from '@/hooks/use-activity';
+      15  import { useBalances } from '@/hooks/use-balances';
+      16  import { formatAmount } from '@/lib/money';
+      16 -import { goBack } from '@/lib/navigation';                     
+      17  
+      18  export default function ActivityRoute() {
+      19    const { token } = useToken();
+     ...
+      65    return (
+      66      <Screen>
+      67        <ScrollView contentContainerStyle={styles.content}>
+      68 -        <View style={styles.back}>                             
+      69 -          <Button title="‹ Back" variant="link" compact onPress
+         -={goBack} />                                                   
+      70 -        </View>                                                
+      68 +        <BackHeader />                                         
+      69          <AppText variant="title">Activity</AppText>
+      70          {body}
+      71        </ScrollView>
+     ...
+      80      item.amount !== null && item.decimals !== null
+      81        ? `${item.amount > 0n ? '+' : ''}${formatAmount(item.amou
+          nt, item.decimals)}`
+      82        : item.rawAmount; // unknown asset: shown exactly as the 
+          API sent it
+      85 -  const tone = item.amount === null ? colors.text : item.amount
+         - > 0n ? colors.positive : item.amount < 0n ? colors.danger : co
+         -lors.text;                                                     
+      83 +  // A failed claim moved no money: muted and struck through, n
+         +ot a red outflow.                                              
+      84 +  const failed = item.status === 'failed';                     
+      85 +  const tone =                                                 
+      86 +    failed || item.amount === null ? colors.textMuted : item.am
+         +ount > 0n ? colors.positive : item.amount < 0n ? colors.danger 
+         +: colors.text;                                                 
+      87  
+      88    return (
+      89      <View style={[styles.row, !first && styles.divider]}>
+     ...
+       95          <AppText variant="muted">{new Date(item.createdAt).toL
+           ocaleString()}</AppText>
+       96        </View>
+       97        <View style={styles.rowSide}>
+       97 -        <AppText style={[styles.amount, { color: tone }]} sele
+          -ctable>                                                       
+       98 +        <AppText style={[styles.amount, { color: tone }, faile
+          +d && styles.struck]} selectable>                              
+     … 17 more lines (ctrl+o to expand)
+  ⎿  Updated src/app/claim.tsx (+2 -5)
+       7  import { useToken } from '@/auth/token';
+       8  import { useClaims } from '@/claims/claims-provider';
+       9  import { AppText } from '@/components/app-text';
+      10 +import { BackHeader } from '@/components/back-header';         
+      11  import { Button } from '@/components/button';
+      12  import { Card } from '@/components/card';
+      13  import { Row } from '@/components/row';
+     ...
+      17  import { useClaimOptions } from '@/hooks/use-claim-options';
+      18  import { useDisplayBalances } from '@/hooks/use-display-balance
+          s';
+      19  import { formatAmount, validateClaimAmount, type ClaimAmounts, 
+          type ClaimError } from '@/lib/money';
+      19 -import { goBack } from '@/lib/navigation';                     
+      20  import { uuid } from '@/lib/uuid';
+      21  
+      22  export default function ClaimRoute() {
+     ...
+      53    return (
+      54      <Screen>
+      55        <ScrollView contentContainerStyle={styles.content} keyboa
+          rdShouldPersistTaps="handled">
+      56 -        <View style={styles.back}>                             
+      57 -          <Button title="‹ Back" variant="link" compact onPress
+         -={goBack} />                                                   
+      58 -        </View>                                                
+      56 +        <BackHeader />                                         
+      57          <AppText variant="title">Claim {asset}</AppText>
+      58          {body}
+      59        </ScrollView>
+     ...
+      216  
+      217  const styles = StyleSheet.create({
+      218    content: { padding: spacing.lg, gap: spacing.lg },
+      221 -  back: { alignItems: 'flex-start' },                         
+      219    labelRow: { flexDirection: 'row', justifyContent: 'space-bet
+           ween', alignItems: 'center' },
+      220    inputRow: {
+      221      flexDirection: 'row',
+  ⎿  Updated src/app/index.tsx (+4 -3)
+      13  import { RefreshScrollView } from '@/components/refresh-scroll-
+          view';
+      14  import { Screen } from '@/components/screen';
+      15  import { Banner, ErrorState, Skeleton } from '@/components/stat
+          es';
+      16 -import { colors, radius, spacing } from '@/constants/theme';   
+      16 +import { colors, headerHeight, radius, spacing } from '@/consta
+         +nts/theme';                                                    
+      17  import { useDisplayBalances } from '@/hooks/use-display-balance
+          s';
+      18  import { useNow } from '@/hooks/use-now';
+      19  import { formatUsd, totalUsd } from '@/lib/money';
+     ...
+      163  
+      164  const styles = StyleSheet.create({
+      165    content: { padding: spacing.lg, gap: spacing.lg },
+      166 -  header: { flexDirection: 'row', alignItems: 'center', justif
+          -yContent: 'space-between' },                                  
+      167 -  headerLinks: { flexDirection: 'row' },                      
+      166 +  header: { height: headerHeight, flexDirection: 'row', alignI
+          +tems: 'center', justifyContent: 'space-between' },            
+      167 +  // Negative margin: the last link's own padding shouldn't in
+          +dent it from the content's right edge.                        
+      168 +  headerLinks: { flexDirection: 'row', marginRight: -14 },    
+      169    hero: {
+      170      gap: spacing.sm,
+      171      padding: spacing.lg,
+  ⎿  Created src/components/back-header.tsx (+23 -0)
+       1 +import { Pressable, StyleSheet, View } from 'react-native';    
+       2 +                                                               
+       3 +import { colors, headerHeight } from '@/constants/theme';      
+       4 +import { goBack } from '@/lib/navigation';                     
+       5 +                                                               
+       6 +import { AppText } from './app-text';                          
+       7 +                                                               
+       8 +/** "‹ Back" flush with the content's left edge, same height as
+         + Home's header row so headers line up. */                      
+       9 +export function BackHeader() {                                 
+      10 +  return (                                                     
+      11 +    <View style={styles.row}>                                  
+      12 +      <Pressable onPress={goBack} accessibilityRole="button" hi
+         +tSlop={8} style={({ pressed }) => pressed && styles.pressed}>  
+      13 +        <AppText style={styles.label}>‹ Back</AppText>         
+      14 +      </Pressable>                                             
+      15 +    </View>                                                    
+      16 +  );                                                           
+      17 +}                                                              
+      18 +                                                               
+      19 +const styles = StyleSheet.create({                             
+      20 +  row: { height: headerHeight, flexDirection: 'row', alignItems
+         +: 'center' },                                                  
+      21 +  label: { color: colors.accent, fontWeight: '600', fontSize: 1
+         +4 },                                                           
+      22 +  pressed: { opacity: 0.55 },                                  
+      23 +});                                                            
+  ⎿  Updated src/constants/theme.ts (+3 -0)
+      31  /** Asset icon colors; unknown assets fall back to `colors.text
+          `. */
+      32  export const assetColors: Record<string, string> = { USDT: '#26
+          A17B', BTC: '#F7931A', ETH: '#627EEA' };
+      33  
+      34 +/** Height of the top header row (Home logo row, "‹ Back" row) 
+         +so headers line up across screens. */                          
+      35 +export const headerHeight = 36;                                
+      36 +                                                               
+      37  export const radius = { card: 18, pill: 999 } as const;
+      38  
+      39  export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, 
+          xxl: 32 } as const;
+  ⎿  (timeout 5m)
+
+⏺ Done. I also took the extra right padding off Home's last header link, so
+  "Change token" now lines up with the cards' right edge too. Typecheck, lint
+  and all 94 tests pass.
