@@ -110,7 +110,7 @@ function Home({ token }: { token: string }) {
           </Card>
         ) : (
           data.items.map((balance) => (
-            <BalanceCard key={balance.asset} balance={balance} claims={records.filter((r) => r.claim && r.body.asset === balance.asset)} />
+            <BalanceCard key={balance.asset} balance={balance} claims={records.filter((r) => r.claim && !r.reflected && r.body.asset === balance.asset)} />
           ))
         )}
       </RefreshScrollView>

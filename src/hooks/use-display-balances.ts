@@ -10,7 +10,7 @@ import { useBalances } from './use-balances';
 /** Balances as shown to the user: the latest snapshot corrected for this device's claims (see displayBalances). */
 export function useDisplayBalances(token: string) {
   const balances = useBalances(token);
-  const { records, remove } = useClaims();
+  const { records, markReflected } = useClaims();
 
   const local = useMemo(() => records.flatMap(toLocalClaim), [records]);
   const data = useMemo(() => balances.data && displayBalances(balances.data, local), [balances.data, local]);
@@ -19,8 +19,8 @@ export function useDisplayBalances(token: string) {
   const asOfMs = balances.data?.asOfMs;
   useEffect(() => {
     if (asOfMs === undefined) return;
-    remove(local.filter((c) => isReflected(c, asOfMs)).map((c) => c.key));
-  }, [asOfMs, local, remove]);
+    markReflected(local.filter((c) => isReflected(c, asOfMs)).map((c) => c.key));
+  }, [asOfMs, local, markReflected]);
 
   return { ...balances, data };
 }
@@ -28,7 +28,7 @@ export function useDisplayBalances(token: string) {
 /** Only claims the server confirmed creating count; unknown outcomes don't move balances. */
 function toLocalClaim(record: ClaimRecord): (LocalClaim & { key: string })[] {
   const { claim } = record;
-  if (!claim) return [];
+  if (!claim || record.reflected) return [];
   const amount = parseAmount(record.body.amount, record.decimals);
   const createdAtMs = Date.parse(claim.createdAt);
   const settledAtMs = claim.status === 'pending' ? null : Date.parse(claim.updatedAt);

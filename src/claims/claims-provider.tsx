@@ -22,8 +22,8 @@ type ClaimsContextValue = ClaimsSnapshot & {
   submit: (record: ClaimRecord) => Promise<SubmitOutcome>;
   /** Re-sends an unresolved attempt with its SAME key and body. */
   checkAgain: (key: string) => void;
-  /** Drops settled claims that balances now reflect. */
-  remove: (keys: string[]) => void;
+  /** Settled claims that balances now reflect: stop correcting balances for them. */
+  markReflected: (keys: string[]) => void;
 };
 
 const ClaimsContext = createContext<ClaimsContextValue | null>(null);
@@ -98,7 +98,7 @@ export function ClaimsProvider({ token, children }: { token: string; children: R
     return () => clearInterval(id);
   }, [store, token]);
 
-  const value = { ...snapshot, submit, checkAgain: (key: string) => void check(key, RECHECK_DELAYS_MS), remove: store.remove };
+  const value = { ...snapshot, submit, checkAgain: (key: string) => void check(key, RECHECK_DELAYS_MS), markReflected: store.markReflected };
   return <ClaimsContext.Provider value={value}>{children}</ClaimsContext.Provider>;
 }
 

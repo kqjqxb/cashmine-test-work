@@ -1,56 +1,63 @@
-# Welcome to your Expo app 👋
+# CashMine payback — mobile web slice
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo (SDK 58, TypeScript, expo-router) app for a ~390px phone screen: see payback balances and claim them.
 
-## Get started
+**Live:** https://cashmine-test-work.vercel.app
 
-1. Install dependencies
+On first open, paste the API token from the task email. It is stored only in this browser (localStorage) and can be changed from Home.
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run locally
 
 ```bash
-npm run reset-project
+npm install
+npx expo start --web   # opens the app in the browser
+npm test               # unit tests (jest-expo)
+npx tsc --noEmit       # typecheck
+npx expo lint          # lint
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+## What works
 
-### Other setup steps
+- **Token gate:** asks for the token at runtime; "Change token" on Home; a 401 shows "Token invalid or expired" without clearing the token.
+- **Balances (Home):**
+  - USD total of what can be claimed now, and one card per asset (available, pending, claiming, USD value).
+  - "Updated Xs ago", plus a "Stale" label when the data is over 60s old or the last refresh failed.
+  - Loading skeleton, a full-screen error with Retry, and an inline banner that keeps old data when a refresh fails.
+  - Refresh button, pull-to-refresh, and auto-refresh every 15s while the screen is open.
+- **Claim:**
+  - Loads claim options; amount input with Max and live validation (min, available, decimals, fee), plus a "you receive" preview.
+  - Destination picker, review, then confirm with an Idempotency-Key that is persisted before sending.
+  - Status screen polls the claim until it is completed or failed.
+- **Unknown outcome** (504, timeout, network error, 5xx):
+  - Never shown as failed; the POST is re-sent with the same key and body.
+  - "Check again" button; unresolved attempts resume after a reload and show a banner on Home.
+- **Balance right after a claim:** the snapshot is corrected for this device's claims, using server timestamps only, and each card shows a "Claim … in progress / completed / failed" note.
+- **Money:** every amount is a `bigint` in the asset's smallest unit; no floats anywhere.
+- **Tests (91):** amount parsing and formatting, claim validation, fee and USD math, the API client (retries, no retry on POST, strict parsing), balance correction after a claim, and the claim store.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Not done: Activity history. See [NOTES.md](NOTES.md).
 
-## Learn more
+## Project structure
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/
+  app/                 routes (expo-router)
+    _layout.tsx        token gate + claims provider + stack
+    index.tsx          Home: balances
+    claim.tsx          claim form → review → confirm
+    claim-status.tsx   claim status / unknown-outcome checking
+    token.tsx          change token
+  api/
+    client.ts          typed fetch: timeout, GET retries, strict response parsing
+    errors.ts          ApiError + user-facing messages
+  claims/
+    store.ts           persisted claim attempts (Idempotency-Key + exact body)
+    claims-provider.tsx  submit, re-check with same key, poll pending claims
+  lib/
+    money.ts           bigint amounts: parse, format, validate, USD
+    display-balance.ts balance correction after a claim (pure)
+  hooks/               balances polling, corrected balances, claim options, clock
+  components/          UI building blocks (button, card, states, …)
+  constants/theme.ts   colors, radius, spacing
+  config.ts            API base URL (only place it appears)
+```

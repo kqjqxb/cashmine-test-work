@@ -2,6 +2,8 @@ import type { Claim, ClaimBody, ClaimStatus } from '@/api/client';
 import { formatAmount } from '@/lib/money';
 import { readStorage, writeStorage } from '@/lib/storage';
 
+const MAX_REFLECTED = 20;
+
 /** What we know about a claim attempt. Persisted (JSON-safe: amounts are API decimal strings). */
 export type ClaimRecord = {
   /** Idempotency-Key: one per attempt, never regenerated for the same attempt. */
@@ -9,6 +11,8 @@ export type ClaimRecord = {
   body: ClaimBody;
   decimals: number;
   destinationLabel: string;
+  /** A balances snapshot already shows this settled claim: no balance correction or card note, kept for its status screen. */
+  reflected?: boolean;
   /** null = we don't know yet whether the server created the claim. */
   claim: {
     id: string;
@@ -73,9 +77,13 @@ export class ClaimStore {
     this.update({ records: this.snapshot.records.filter((r) => r.key !== key), rejected });
   }
 
-  remove = (keys: string[]) => {
+  /** Keeps the records (status screen still works) but stops correcting balances; only the newest reflected ones are kept. */
+  markReflected = (keys: string[]) => {
     if (keys.length === 0) return;
-    this.update({ records: this.snapshot.records.filter((r) => !keys.includes(r.key)) });
+    const records = this.snapshot.records.map((r) => (keys.includes(r.key) ? { ...r, reflected: true } : r));
+    const reflected = records.filter((r) => r.reflected);
+    const dropped = new Set(reflected.slice(0, Math.max(0, reflected.length - MAX_REFLECTED)).map((r) => r.key));
+    this.update({ records: records.filter((r) => !dropped.has(r.key)) });
   };
 
   setChecking(key: string, checking: boolean) {

@@ -20,8 +20,8 @@ Priority: Balances > Claim > Tests > Activity. Fewer things done correctly beats
 - [x] 4. Decision: balance right after claim — C (reconcile by server timestamps) + D note (implemented: src/lib/display-balance.ts)
 - [x] 5. Claim: asset → amount/Max → fee + receive preview → confirm → submit with Idempotency-Key → track status (poll GET /v1/claims/{id}) until completed/failed
 - [x] 6. Unknown outcome (timeout/504/network): persist pending attempt (key+body), retry same key, UI "checking status"
-- [ ] 7. Activity: paginated history (accrual / reversal / claim), if time allows
-- [ ] 8. README.md (live link, run locally, what works) + NOTES.md (Decisions, Working with AI ×3, Not done)
+- [ ] 7. Activity: paginated history — NOT DONE (skipped for time; `getActivity` + signed-amount parsing exist in the client, no screen)
+- [x] 8. README.md (live link, run locally, what works) + NOTES.md (Decisions, Working with AI ×3, Not done)
 - [ ] 9. Final deploy before 12:50 UTC; no pushes after 13:00
 
 ## Decisions to document in NOTES.md
@@ -71,3 +71,6 @@ Priority: Balances > Claim > Tests > Activity. Fewer things done correctly beats
 - Step 6: Home shows a warning banner per unconfirmed attempt linking to its status screen.
 - Step 4 impl: Only claims with a server claim object move balances; unknown-outcome attempts don't (we don't know they exist) but get the warning banner. Comparison "snapshot knows the claim" is `asOf >= createdAt` (inclusive, matching the `asOf >= updatedAt` drop rule). Pruning of reflected entries runs where corrected balances are computed (Home, claim form).
 - Step 4 impl: Card note per tracked claim ("Claim of X in progress / completed / failed: reason ›") links to its status screen; it disappears once a snapshot reflects the settled claim.
+- Live evidence (user, curl, 2026-10-21): POST /v1/claims returned 504 but the claim WAS created; repeating with the same Idempotency-Key returned 200 + `Idempotent-Replayed: true` and the same claim id → "unknown outcome → re-send same key + body" is required, not theoretical; a new key there would have created a second claim.
+- Live evidence (user, curl): snapshot asOf 12:07:44 (< claim createdAt 12:07:49) showed the old balance; asOf 12:07:59 showed available −20 / claiming +20; settled ~20s later → confirms the asOf-vs-createdAt rule behind decision C.
+- Fix: settled claims reflected by a snapshot are marked `reflected` (no balance correction, no card note) instead of removed, so the status screen keeps showing "Completed/Failed"; only the newest 20 reflected records are kept.
