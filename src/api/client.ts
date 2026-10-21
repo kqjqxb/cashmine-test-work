@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/config';
-import { formatAmount, parseAmount, parseSignedAmount } from '@/lib/money';
+import { parseAmount, parseSignedAmount } from '@/lib/money';
 
 import { ApiError } from './errors';
 
@@ -38,7 +38,8 @@ export type Claim = {
   createdAt: string;
   updatedAt: string;
 };
-export type ClaimRequest = { asset: string; decimals: number; amount: bigint; destinationId: string };
+/** The exact POST body. Persisted as-is so a retry with the same Idempotency-Key sends the same body. */
+export type ClaimBody = { asset: string; amount: string; destinationId: string };
 
 export type ActivityItem = {
   id: string;
@@ -79,10 +80,10 @@ export async function getClaimOptions(token: string, asset: string, decimals: nu
 /** Never retried here: a retry must reuse the same Idempotency-Key and body, which the caller owns. */
 export async function createClaim(
   token: string,
-  claim: ClaimRequest,
+  body: ClaimBody,
+  decimals: number,
   idempotencyKey: string,
 ): Promise<{ claim: Claim; replayed: boolean }> {
-  const body = { asset: claim.asset, amount: formatAmount(claim.amount, claim.decimals), destinationId: claim.destinationId };
   let replayed = false;
   const data = await request('/v1/claims', {
     token,
@@ -91,7 +92,7 @@ export async function createClaim(
     headers: { 'Idempotency-Key': idempotencyKey },
     onResponse: (response) => (replayed = response.headers.get('Idempotent-Replayed') === 'true'),
   });
-  return { claim: parseClaim(data, claim.decimals), replayed };
+  return { claim: parseClaim(data, decimals), replayed };
 }
 
 export async function getClaim(token: string, id: string, decimals: number, signal?: AbortSignal): Promise<Claim> {

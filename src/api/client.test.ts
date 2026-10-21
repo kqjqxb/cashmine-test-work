@@ -60,15 +60,15 @@ describe('getBalances', () => {
 });
 
 describe('createClaim', () => {
-  const claim = { asset: 'ETH', decimals: 18, amount: 500_000_000_000_000_000n, destinationId: 'dest_wallet' };
+  const body = { asset: 'ETH', amount: '0.5', destinationId: 'dest_wallet' };
 
   it('is never retried, even on 503', async () => {
     fetchMock.mockReturnValue(reply(503, { error: { code: 'SERVER', message: 'down' } }));
-    await expect(createClaim('t', claim, 'key-1')).rejects.toMatchObject({ status: 503 });
+    await expect(createClaim('t', body, 18, 'key-1')).rejects.toMatchObject({ status: 503 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('sends the amount as an exact string with the Idempotency-Key', async () => {
+  it('sends the exact body with the Idempotency-Key', async () => {
     fetchMock.mockReturnValueOnce(
       reply(
         200,
@@ -79,7 +79,7 @@ describe('createClaim', () => {
         { 'Idempotent-Replayed': 'true' },
       ),
     );
-    const result = await createClaim('t', claim, 'key-1');
+    const result = await createClaim('t', body, 18, 'key-1');
     const [, init] = fetchMock.mock.calls[0];
     expect(JSON.parse(init.body)).toEqual({ asset: 'ETH', amount: '0.5', destinationId: 'dest_wallet' });
     expect(init.headers['Idempotency-Key']).toBe('key-1');

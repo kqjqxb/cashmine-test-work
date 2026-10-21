@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { colors, radius, spacing } from '@/constants/theme';
 
@@ -35,6 +35,15 @@ export function Banner({ tone, message, action }: { tone: 'danger' | 'warning'; 
     <View style={[styles.banner, danger ? styles.dangerBanner : styles.warningBanner]} accessibilityRole="alert">
       <AppText style={[styles.bannerText, { color: danger ? colors.danger : colors.warning }]}>{message}</AppText>
       {action && <Button {...action} variant="link" compact />}
+    </View>
+  );
+}
+
+/** Centered spinner for a screen section that is loading. */
+export function LoadingState() {
+  return (
+    <View style={styles.center} accessibilityLabel="Loading">
+      <ActivityIndicator color={colors.accent} size="large" />
     </View>
   );
 }

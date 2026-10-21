@@ -17,9 +17,9 @@ Priority: Balances > Claim > Tests > Activity. Fewer things done correctly beats
 - [x] 1. money.ts + unit tests (parse, validate, fee, USD totals)
 - [x] 2. Cleanup template, config, API client, token gate, Home (balances, USD total, freshness, refresh states)
 - [x] 3. Deploy to Vercel (early) — https://cashmine-test-work.vercel.app
-- [ ] 4. Decision: balance right after claim — ask for ≥2 approaches, compare, pick one
-- [ ] 5. Claim: asset → amount/Max → fee + receive preview → confirm → submit with Idempotency-Key → track status (poll GET /v1/claims/{id}) until completed/failed
-- [ ] 6. Unknown outcome (timeout/504/network): persist pending attempt (key+body), retry same key, UI "checking status"
+- [x] 4. Decision: balance right after claim — C (reconcile by server timestamps) + D note (implemented: src/lib/display-balance.ts)
+- [x] 5. Claim: asset → amount/Max → fee + receive preview → confirm → submit with Idempotency-Key → track status (poll GET /v1/claims/{id}) until completed/failed
+- [x] 6. Unknown outcome (timeout/504/network): persist pending attempt (key+body), retry same key, UI "checking status"
 - [ ] 7. Activity: paginated history (accrual / reversal / claim), if time allows
 - [ ] 8. README.md (live link, run locally, what works) + NOTES.md (Decisions, Working with AI ×3, Not done)
 - [ ] 9. Final deploy before 12:50 UTC; no pushes after 13:00
@@ -60,3 +60,14 @@ Priority: Balances > Claim > Tests > Activity. Fewer things done correctly beats
 - Step 2: Font = system stack led by Inter (no webfont download) — load Inter via expo-font — fewer deps, fast first paint.
 - Step 2: Removed template files + `scripts/reset-project.js` (would wipe the app if run); left unused template npm deps (expo-device, expo-symbols, …) installed — not imported, so not bundled.
 - Step 2: `.env` is loaded by the Expo CLI, but only `EXPO_PUBLIC_*` vars are inlined; verified the web export does not contain the token.
+- Step 4 (user decision): Balance after claim = **C + D note**. Local claims persisted per token; display = snapshot corrected by server timestamps: snapshot `asOf` < claim `createdAt` → snapshot doesn't know the claim → move amount out of available; failed claim with `asOf` < `updatedAt` → give it back to available; settled + `asOf` >= `updatedAt` → snapshot is the truth, drop the local entry; clamp at 0. Plus a per-asset "claim in progress / completed / failed" note. Alternatives: A server-only (stale ~30s → double-claim complaint), B naive optimistic (stale snapshot after the deduction → drop-then-jump complaint), D alone (honest but number lags). Why: number reacts immediately and never moves backwards except for a failure with a reason; only server times are compared, so the device clock doesn't matter.
+- Step 4 (user override): Claim button is NOT disabled while a claim is in flight — Max/validation use the corrected available, so the same money can't be claimed twice, and the server checks live; disabling would block a legitimate claim of the remaining balance with an unexplained disabled state.
+- Step 5: `createClaim` takes the exact `ClaimBody` (amount already a decimal string) — format inside the client — the persisted body is byte-for-byte what is re-sent with the same key.
+- Step 5: Claim attempts live in a small `ClaimStore` (useSyncExternalStore) that writes localStorage synchronously on every change, keyed by a hash of the token (not the token) — React state + effect — an effect would persist *after* the POST started; the key must be on disk first.
+- Step 5: Pending claims are polled every 2s app-wide by `ClaimsProvider` (not only on the status screen) — poll only on status screen — Home's note and the balance correction need the outcome too.
+- Step 5: Live amount errors: `above_available` and `too_many_decimals` show while typing (typing more can't fix them); empty/format/below_min/fee wait for blur or Continue.
+- Step 5: 4xx other than 429 = definite "not created" → record removed, message shown; 429 counts as unknown (handled in step 6).
+- Step 6: Unknown outcome = status 0 (NETWORK / CLIENT_TIMEOUT), 5xx and 429 on POST. Auto re-send with the SAME key+body after 1s/3s/7s; "Check again" and resume-after-reload send immediately then 3s/7s. One check loop per key. Still unknown → "We couldn't confirm your claim yet. Don't submit it again." + Check again. Record cleared only by a claim object (kept until settled) or a definite 4xx — fewer/more retries — bounded ~11s before handing control to the user.
+- Step 6: Home shows a warning banner per unconfirmed attempt linking to its status screen.
+- Step 4 impl: Only claims with a server claim object move balances; unknown-outcome attempts don't (we don't know they exist) but get the warning banner. Comparison "snapshot knows the claim" is `asOf >= createdAt` (inclusive, matching the `asOf >= updatedAt` drop rule). Pruning of reflected entries runs where corrected balances are computed (Home, claim form).
+- Step 4 impl: Card note per tracked claim ("Claim of X in progress / completed / failed: reason ›") links to its status screen; it disappears once a snapshot reflects the settled claim.

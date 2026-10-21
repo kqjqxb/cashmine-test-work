@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import type { Balance } from '@/api/client';
+import type { ClaimRecord } from '@/claims/store';
 import { colors, spacing } from '@/constants/theme';
 import { computeUsd, formatAmount, formatUsd } from '@/lib/money';
 
@@ -9,7 +10,8 @@ import { AppText } from './app-text';
 import { Button } from './button';
 import { Card } from './card';
 
-export function BalanceCard({ balance }: { balance: Balance }) {
+/** `claims`: this asset's claims tracked on this device; shown as a note until balances reflect them. */
+export function BalanceCard({ balance, claims }: { balance: Balance; claims: ClaimRecord[] }) {
   const { asset, decimals, available, pending, claiming } = balance;
   const usd = computeUsd(available, decimals, balance.usdPrice);
 
@@ -37,12 +39,33 @@ export function BalanceCard({ balance }: { balance: Balance }) {
         <Detail label="Claiming" value={`${formatAmount(claiming, decimals)} ${asset}`} />
       </View>
 
+      {claims.map((record) => (
+        <ClaimNote key={record.key} record={record} />
+      ))}
+
       <Button
         title={available > 0n ? `Claim ${asset}` : 'Nothing to claim'}
         disabled={available === 0n}
         onPress={() => router.push({ pathname: '/claim', params: { asset } })}
       />
     </Card>
+  );
+}
+
+const NOTE_TEXT = { pending: 'in progress', completed: 'completed', failed: 'failed' } as const;
+
+function ClaimNote({ record }: { record: ClaimRecord }) {
+  const status = record.claim?.status ?? 'pending';
+  const failed = status === 'failed';
+  return (
+    <AppText
+      variant="muted"
+      style={failed && styles.failedNote}
+      onPress={() => router.push({ pathname: '/claim-status', params: { key: record.key } })}
+    >
+      Claim of {record.body.amount} {record.body.asset} {NOTE_TEXT[status]}
+      {failed && record.claim?.failureReason ? `: ${record.claim.failureReason}` : ''} ›
+    </AppText>
   );
 }
 
@@ -69,4 +92,5 @@ const styles = StyleSheet.create({
   asset: { flex: 1 },
   row: { flexDirection: 'row', gap: spacing.md },
   detail: { flex: 1, gap: 2 },
+  failedNote: { color: colors.danger },
 });

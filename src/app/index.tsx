@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { describeError, isUnauthorized } from '@/api/errors';
 import { useToken } from '@/auth/token';
+import { useClaims } from '@/claims/claims-provider';
 import { AppText } from '@/components/app-text';
 import { BalanceCard } from '@/components/balance-card';
 import { Button } from '@/components/button';
@@ -11,7 +12,7 @@ import { RefreshScrollView } from '@/components/refresh-scroll-view';
 import { Screen } from '@/components/screen';
 import { Banner, ErrorState, Skeleton } from '@/components/states';
 import { colors, radius, spacing } from '@/constants/theme';
-import { useBalances } from '@/hooks/use-balances';
+import { useDisplayBalances } from '@/hooks/use-display-balances';
 import { useNow } from '@/hooks/use-now';
 import { formatUsd, totalUsd } from '@/lib/money';
 
@@ -28,8 +29,11 @@ export default function HomeRoute() {
 }
 
 function Home({ token }: { token: string }) {
-  const { data, error, refreshing, refresh } = useBalances(token);
+  const { data, error, refreshing, refresh } = useDisplayBalances(token);
+  const { records } = useClaims();
   const now = useNow();
+  // Attempts whose outcome we don't know yet (timeout / 5xx / network); resumed automatically.
+  const unconfirmed = records.filter((r) => !r.claim);
 
   if (!data) {
     return (
@@ -83,6 +87,15 @@ function Home({ token }: { token: string }) {
           </View>
         </View>
 
+        {unconfirmed.map((r) => (
+          <Banner
+            key={r.key}
+            tone="warning"
+            message={`Confirming your claim of ${r.body.amount} ${r.body.asset}. Don't submit it again.`}
+            action={{ title: 'View', onPress: () => router.push({ pathname: '/claim-status', params: { key: r.key } }) }}
+          />
+        ))}
+
         {error &&
           (isUnauthorized(error) ? (
             <Banner tone="danger" message="Token invalid or expired." action={{ title: 'Change token', onPress: changeToken }} />
@@ -96,7 +109,9 @@ function Home({ token }: { token: string }) {
             <AppText variant="muted">Balances appear here once you earn payback on a partner exchange.</AppText>
           </Card>
         ) : (
-          data.items.map((balance) => <BalanceCard key={balance.asset} balance={balance} />)
+          data.items.map((balance) => (
+            <BalanceCard key={balance.asset} balance={balance} claims={records.filter((r) => r.claim && r.body.asset === balance.asset)} />
+          ))
         )}
       </RefreshScrollView>
     </Screen>
